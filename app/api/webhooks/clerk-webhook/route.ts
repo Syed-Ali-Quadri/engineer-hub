@@ -88,6 +88,8 @@ export async function POST(request: NextRequest) {
             console.error("Database error:", dbErr);
             return NextResponse.json({ error: "Database operation failed" }, { status: 500 });
         }
+    } else {
+        return
     }
 
     return NextResponse.json({ success: true }, { status: 200 });

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 interface ProjectFormProps {
     isOpen: boolean
@@ -12,16 +12,46 @@ interface ProjectFormProps {
 
 const ProjectForm: React.FC<ProjectFormProps> = ({ isOpen, onClose, onSubmit, initialData, mode }) => {
     const [formData, setFormData] = useState({
-        title: initialData?.title || '',
-        description: initialData?.description || '',
-        cost: initialData?.cost || '',
-        duration: initialData?.duration || '',
-        seats: initialData?.seats || '',
-        tags: initialData?.tags?.join(', ') || '',
-        requirements: initialData?.requirements?.join('\n') || '',
-        deliverables: initialData?.deliverables?.join('\n') || '',
-        coverImage: initialData?.coverImage || ''
+        title: '',
+        description: '',
+        cost: '',
+        duration: '',
+        seats: '',
+        tags: '',
+        requirements: '',
+        deliverables: '',
+        coverImage: ''
     })
+
+    // Update form data when initialData changes (for edit mode)
+    useEffect(() => {
+        if (initialData) {
+            setFormData({
+                title: initialData.title || '',
+                description: initialData.description || '',
+                cost: initialData.cost?.toString() || '',
+                duration: initialData.duration || '',
+                seats: initialData.totalSeats?.toString() || initialData.seatsAvailable?.toString() || '',
+                tags: initialData.tags?.join(', ') || '',
+                requirements: initialData.requirements?.join('\n') || '',
+                deliverables: initialData.deliverables?.join('\n') || '',
+                coverImage: initialData.coverImage || ''
+            })
+        } else {
+            // Reset form for create mode
+            setFormData({
+                title: '',
+                description: '',
+                cost: '',
+                duration: '',
+                seats: '',
+                tags: '',
+                requirements: '',
+                deliverables: '',
+                coverImage: ''
+            })
+        }
+    }, [initialData, isOpen])
 
     if (!isOpen) return null
 

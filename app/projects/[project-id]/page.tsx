@@ -2,151 +2,137 @@
 
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useUser } from '@clerk/nextjs'
 import Image from 'next/image'
 
 interface ProjectData {
-    id: number
+    _id: string
     coverImage: string
     title: string
     description: string
-    creator: {
+    clientId: {
+        _id: string
         name: string
-        avatar?: string
+        profilePicture?: string
     }
     tags: string[]
-    timestamp: string
+    createdAt: string
     cost: number
     duration: string
     requirements: string[]
     deliverables: string[]
-    status: 'open' | 'in-progress' | 'completed'
+    status: 'active' | 'inactive' | 'full' | 'completed'
+    seatsAvailable: number
+    totalSeats: number
 }
 
 const ProjectDetailPage = () => {
     const params = useParams()
     const router = useRouter()
+    const { user, isLoaded } = useUser()
+    const userRole = (user?.unsafeMetadata?.role as 'client' | 'employee' | 'admin') || null
     const projectId = params['project-id']
     
     const [project, setProject] = useState<ProjectData | null>(null)
-    
-    // Mock data - replace with API call
-    const mockProjects: ProjectData[] = [
-        {
-            id: 1,
-            coverImage: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=400&fit=crop",
-            title: "E-Commerce Platform Development",
-            description: "Building a modern e-commerce platform with payment integration, inventory management, and real-time analytics dashboard for tracking sales and customer behavior. This project requires a team of experienced developers who can work on both frontend and backend systems. The platform should support multiple payment gateways, have a responsive design, and include features like product reviews, wishlists, and order tracking.",
-            creator: {
-                name: "Sarah Johnson",
-                avatar: "https://ui-avatars.com/api/?name=Sarah+Johnson&background=91ADC8&color=fff"
-            },
-            tags: ["Frontend Dev", "Backend Dev", "UI/UX Designer", "DevOps"],
-            timestamp: "2 days ago",
-            cost: 5000,
-            duration: "3-4 months",
-            requirements: [
-                "5+ years of experience in full-stack development",
-                "Proficiency in React, Node.js, and MongoDB",
-                "Experience with payment gateway integration",
-                "Knowledge of cloud deployment (AWS/Azure)",
-                "Strong understanding of security best practices"
-            ],
-            deliverables: [
-                "Fully functional e-commerce website",
-                "Admin dashboard for inventory management",
-                "Payment gateway integration",
-                "User authentication and authorization",
-                "Responsive mobile design",
-                "Comprehensive documentation"
-            ],
-            status: "open"
-        },
-        {
-            id: 2,
-            coverImage: "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&h=400&fit=crop",
-            title: "Mobile Banking App",
-            description: "Secure mobile banking application with biometric authentication, real-time transactions, and spending insights for modern banking experience.",
-            creator: {
-                name: "Michael Chen"
-            },
-            tags: ["iOS Developer", "Android Dev", "Security Engineer"],
-            timestamp: "5 hours ago",
-            cost: 8000,
-            duration: "4-6 months",
-            requirements: [
-                "Experience in native iOS and Android development",
-                "Knowledge of banking security standards",
-                "Biometric authentication implementation",
-                "Real-time data synchronization"
-            ],
-            deliverables: [
-                "iOS and Android applications",
-                "Secure authentication system",
-                "Transaction processing module",
-                "Spending analytics dashboard"
-            ],
-            status: "open"
-        },
-        {
-            id: 3,
-            coverImage: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=400&fit=crop",
-            title: "AI-Powered Healthcare System",
-            description: "Developing an AI-driven healthcare platform for patient diagnosis assistance, appointment scheduling, and medical records management.",
-            creator: {
-                name: "Emily Davis"
-            },
-            tags: ["ML Engineer", "Full Stack", "Data Scientist"],
-            timestamp: "1 week ago",
-            cost: 12000,
-            duration: "6-8 months",
-            requirements: [
-                "Machine learning expertise",
-                "Healthcare domain knowledge",
-                "HIPAA compliance understanding",
-                "Python, TensorFlow experience"
-            ],
-            deliverables: [
-                "AI diagnosis assistance module",
-                "Appointment scheduling system",
-                "Medical records database",
-                "Patient portal interface"
-            ],
-            status: "in-progress"
-        },
-        {
-            id: 4,
-            coverImage: "https://images.unsplash.com/photo-1558002038-1055907df827?w=800&h=400&fit=crop",
-            title: "Smart Home Automation",
-            description: "IoT-based smart home solution with voice control, energy monitoring, and automated security systems for modern living.",
-            creator: {
-                name: "Alex Kumar"
-            },
-            tags: ["IoT Engineer", "Embedded Systems", "Cloud Architect"],
-            timestamp: "3 days ago",
-            cost: 6500,
-            duration: "4-5 months",
-            requirements: [
-                "IoT device integration experience",
-                "Embedded systems programming",
-                "Cloud architecture knowledge",
-                "Voice assistant API integration"
-            ],
-            deliverables: [
-                "Smart home hub application",
-                "Device integration framework",
-                "Voice control system",
-                "Energy monitoring dashboard"
-            ],
-            status: "open"
-        }
-    ]
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+    const [showApplicationModal, setShowApplicationModal] = useState(false)
+    const [applicationData, setApplicationData] = useState({
+        coverLetter: '',
+        expectedSalary: '',
+        portfolioLink: ''
+    })
+    const [applying, setApplying] = useState(false)
+    const [hasApplied, setHasApplied] = useState(false)
     
     useEffect(() => {
-        const foundProject = mockProjects.find(p => p.id === Number(projectId))
-        setProject(foundProject || null)
-    }, [projectId])
+        if (projectId && isLoaded) {
+            fetchProject()
+            if (userRole === 'employee') {
+                checkIfApplied()
+            }
+        }
+    }, [projectId, isLoaded])
+
+    const checkIfApplied = async () => {
+        try {
+            const response = await fetch('/api/applications')
+            const data = await response.json()
+            
+            if (data.success) {
+                const applied = data.applications.some(
+                    (app: any) => app.projectId._id === projectId
+                )
+                setHasApplied(applied)
+            }
+        } catch (error) {
+            setLoading(false)
+        }
+    }
+
+    const handleApplySubmit = async () => {
+        if (!applicationData.coverLetter) {
+            alert('Please provide a cover letter')
+            return
+        }
+
+        try {
+            setApplying(true)
+            const response = await fetch('/api/applications', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    projectId,
+                    ...applicationData
+                })
+            })
+
+            const result = await response.json()
+
+            if (result.success) {
+                alert('Application submitted successfully!')
+                setShowApplicationModal(false)
+                setHasApplied(true)
+                setApplicationData({
+                    coverLetter: '',
+                    expectedSalary: '',
+                    portfolioLink: ''
+                })
+                // Refresh project to update seats
+                fetchProject()
+            } else {
+                alert('Failed to submit application: ' + result.error)
+            }
+        } catch (error) {
+            console.error('Error submitting application:', error)
+            alert('Failed to submit application')
+        } finally {
+            setApplying(false)
+        }
+    }
+
+    const fetchProject = async () => {
+        try {
+            setLoading(true)
+            const response = await fetch(`/api/projects/${projectId}`)
+            const data = await response.json()
+            
+            if (data.success) {
+                setProject(data.project)
+            } else {
+                setError('Project not found')
+            }
+        } catch (error) {
+            console.error('Error fetching project:', error)
+            setError('Failed to load project')
+        } finally {
+            setLoading(false)
+        }
+    }
     
-    if (!project) {
+    if (!isLoaded || loading) {
         return (
             <div style={{
                 display: 'flex',
@@ -156,12 +142,28 @@ const ProjectDetailPage = () => {
                 padding: '40px'
             }}>
                 <div style={{ textAlign: 'center', color: '#647FBC' }}>
-                    <h2>Project not found</h2>
+                    <div style={{ fontSize: '20px' }}>Loading project...</div>
+                </div>
+            </div>
+        )
+    }
+
+    if (error || !project) {
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '60vh',
+                padding: '40px'
+            }}>
+                <div style={{ textAlign: 'center', color: '#647FBC' }}>
+                    <h2>{error || 'Project not found'}</h2>
                     <button
                         onClick={() => router.push('/')}
                         style={{
                             marginTop: '20px',
-                            padding: '1px 20px',
+                            padding: '12px 20px',
                             backgroundColor: '#647FBC',
                             color: '#fff',
                             border: 'none',
@@ -178,10 +180,21 @@ const ProjectDetailPage = () => {
     
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'open': return '#4CAF50'
-            case 'in-progress': return '#FF9800'
+            case 'active': return '#4CAF50'
+            case 'inactive': return '#6c757d'
+            case 'full': return '#dc3545'
             case 'completed': return '#647FBC'
             default: return '#999'
+        }
+    }
+
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case 'active': return 'Active'
+            case 'inactive': return 'Inactive'
+            case 'full': return 'Full'
+            case 'completed': return 'Completed'
+            default: return status
         }
     }
     
@@ -265,29 +278,16 @@ const ProjectDetailPage = () => {
                     padding: '40px'
                 }}>
                     <div style={{
-                        maxWidth: '1200px',
-                        margin: '0 auto'
+                        display: 'inline-block',
+                        padding: '6px 16px',
+                        backgroundColor: getStatusColor(project.status),
+                        color: '#fff',
+                        borderRadius: '20px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        textTransform: 'capitalize'
                     }}>
-                        <h1 style={{
-                            color: '#fff',
-                            fontSize: '36px',
-                            fontWeight: '700',
-                            margin: '0 0 12px 0'
-                        }}>
-                            {project.title}
-                        </h1>
-                        <div style={{
-                            display: 'inline-block',
-                            padding: '6px 16px',
-                            backgroundColor: getStatusColor(project.status),
-                            color: '#fff',
-                            borderRadius: '20px',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            textTransform: 'capitalize'
-                        }}>
-                            {project.status.replace('-', ' ')}
-                        </div>
+                        {getStatusLabel(project.status)}
                     </div>
                 </div>
             </div>
@@ -334,16 +334,16 @@ const ProjectDetailPage = () => {
                                     color: '#fff',
                                     overflow: 'hidden'
                                 }}>
-                                    {project.creator.avatar ? (
+                                    {project.clientId.profilePicture ? (
                                         <Image
-                                            src={project.creator.avatar}
-                                            alt={project.creator.name}
+                                            src={project.clientId.profilePicture}
+                                            alt={project.clientId.name}
                                             width={50}
                                             height={50}
                                             style={{ objectFit: 'cover' }}
                                         />
                                     ) : (
-                                        project.creator.name.charAt(0).toUpperCase()
+                                        project.clientId.name.charAt(0).toUpperCase()
                                     )}
                                 </div>
                                 <div>
@@ -352,13 +352,13 @@ const ProjectDetailPage = () => {
                                         fontWeight: '600',
                                         color: '#333'
                                     }}>
-                                        {project.creator.name}
+                                        {project.clientId.name}
                                     </div>
                                     <div style={{
                                         fontSize: '14px',
                                         color: '#888'
                                     }}>
-                                        Posted {project.timestamp}
+                                        Posted {new Date(project.createdAt).toLocaleDateString()}
                                     </div>
                                 </div>
                             </div>
@@ -501,7 +501,7 @@ const ProjectDetailPage = () => {
                                     fontWeight: '700',
                                     color: '#647FBC'
                                 }}>
-                                    ${project.cost.toLocaleString()}
+                                    ₹{project.cost.toLocaleString()}
                                 </div>
                             </div>
                             
@@ -526,6 +526,23 @@ const ProjectDetailPage = () => {
                                 </div>
                             </div>
                             
+                            <div style={{ marginBottom: '24px' }}>
+                                <div style={{
+                                    fontSize: '14px',
+                                    color: '#888',
+                                    marginBottom: '8px'
+                                }}>
+                                    Available Seats
+                                </div>
+                                <div style={{
+                                    fontSize: '18px',
+                                    fontWeight: '600',
+                                    color: '#333'
+                                }}>
+                                    {project.seatsAvailable} / {project.totalSeats}
+                                </div>
+                            </div>
+
                             <div style={{ marginBottom: '24px' }}>
                                 <div style={{
                                     fontSize: '14px',
@@ -557,27 +574,41 @@ const ProjectDetailPage = () => {
                                 </div>
                             </div>
                             
-                            <button style={{
-                                width: '100%',
-                                padding: '14px',
-                                backgroundColor: '#647FBC',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontSize: '16px',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                transition: 'background 0.2s',
-                                marginBottom: '12px'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#5570a8'
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = '#647FBC'
-                            }}>
-                                Apply for Project
-                            </button>
+                            {/* Apply Button - Only for employees */}
+                            {userRole === 'employee' && (
+                                <button 
+                                    onClick={() => setShowApplicationModal(true)}
+                                    disabled={hasApplied || project.status !== 'active' || project.seatsAvailable === 0}
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px',
+                                        backgroundColor: hasApplied || project.status !== 'active' || project.seatsAvailable === 0 ? '#ccc' : '#647FBC',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontSize: '16px',
+                                        fontWeight: '600',
+                                        cursor: hasApplied || project.status !== 'active' || project.seatsAvailable === 0 ? 'not-allowed' : 'pointer',
+                                        transition: 'background 0.2s',
+                                        marginBottom: '12px'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!hasApplied && project.status === 'active' && project.seatsAvailable > 0) {
+                                            e.currentTarget.style.backgroundColor = '#5570a8'
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!hasApplied && project.status === 'active' && project.seatsAvailable > 0) {
+                                            e.currentTarget.style.backgroundColor = '#647FBC'
+                                        }
+                                    }}
+                                >
+                                    {hasApplied ? 'Already Applied' : 
+                                     project.seatsAvailable === 0 ? 'No Seats Available' :
+                                     project.status !== 'active' ? 'Applications Closed' :
+                                     'Apply for Project'}
+                                </button>
+                            )}
                             
                             <button
                                 onClick={() => router.push('/')}
@@ -609,6 +640,152 @@ const ProjectDetailPage = () => {
                 </div>
             </div>
             </div>
+
+            {/* Application Modal */}
+            {showApplicationModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                    padding: '20px'
+                }} onClick={() => setShowApplicationModal(false)}>
+                    <div style={{
+                        backgroundColor: '#fff',
+                        borderRadius: '16px',
+                        width: '100%',
+                        maxWidth: '600px',
+                        maxHeight: '90vh',
+                        overflow: 'auto',
+                        padding: '32px'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                            <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#333' }}>
+                                Apply for Project
+                            </h2>
+                            <button
+                                onClick={() => setShowApplicationModal(false)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '8px'
+                                }}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Cover Letter */}
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>
+                                Cover Letter *
+                            </label>
+                            <textarea
+                                value={applicationData.coverLetter}
+                                onChange={(e) => setApplicationData({ ...applicationData, coverLetter: e.target.value })}
+                                required
+                                rows={6}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    border: '1px solid #e0e0e0',
+                                    borderRadius: '8px',
+                                    fontSize: '15px',
+                                    resize: 'vertical',
+                                    fontFamily: 'inherit'
+                                }}
+                                placeholder="Tell the client why you're the perfect fit for this project..."
+                            />
+                        </div>
+
+                        {/* Expected Salary */}
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>
+                                Expected Salary (₹)
+                            </label>
+                            <input
+                                type="number"
+                                value={applicationData.expectedSalary}
+                                onChange={(e) => setApplicationData({ ...applicationData, expectedSalary: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    border: '1px solid #e0e0e0',
+                                    borderRadius: '8px',
+                                    fontSize: '15px'
+                                }}
+                                placeholder="Your expected compensation"
+                            />
+                        </div>
+
+                        {/* Portfolio Link */}
+                        <div style={{ marginBottom: '24px' }}>
+                            <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>
+                                Portfolio Link
+                            </label>
+                            <input
+                                type="url"
+                                value={applicationData.portfolioLink}
+                                onChange={(e) => setApplicationData({ ...applicationData, portfolioLink: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    border: '1px solid #e0e0e0',
+                                    borderRadius: '8px',
+                                    fontSize: '15px'
+                                }}
+                                placeholder="https://your-portfolio.com"
+                            />
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setShowApplicationModal(false)}
+                                disabled={applying}
+                                style={{
+                                    padding: '12px 24px',
+                                    border: '1px solid #e0e0e0',
+                                    borderRadius: '8px',
+                                    backgroundColor: '#fff',
+                                    color: '#666',
+                                    fontSize: '15px',
+                                    fontWeight: '500',
+                                    cursor: applying ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleApplySubmit}
+                                disabled={applying}
+                                style={{
+                                    padding: '12px 24px',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    backgroundColor: applying ? '#ccc' : '#647FBC',
+                                    color: '#fff',
+                                    fontSize: '15px',
+                                    fontWeight: '500',
+                                    cursor: applying ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                {applying ? 'Submitting...' : 'Submit Application'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     )
 }

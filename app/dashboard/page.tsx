@@ -1,21 +1,21 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 import DashboardSidebar from '@/components/DashboardSidebar'
 
 const DashboardPage = () => {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
   const userRole = (user?.unsafeMetadata?.role as 'client' | 'employee' | 'admin') || 'client'
 
   // Client-specific data
-  const [clientStats] = useState({
-    total: 24,
-    active: 12,
-    completed: 8,
-    inactive: 4,
-    approved: 15,
-    pending: 5
+  const [clientStats, setClientStats] = useState({
+    total: 0,
+    active: 0,
+    completed: 0,
+    inactive: 0,
+    approved: 0,
+    pending: 0
   })
 
   // Employee-specific data
@@ -29,6 +29,49 @@ const DashboardPage = () => {
     avgRating: 4.8,
     totalReviews: 23
   })
+
+  useEffect(() => {
+    if (isLoaded && userRole === 'client') {
+      fetchClientData()
+    }
+  }, [isLoaded, userRole])
+
+  const fetchClientData = async () => {
+    try {
+      // Fetch projects
+      const projectsResponse = await fetch('/api/projects')
+      const projectsData = await projectsResponse.json()
+
+      if (projectsData.success) {
+        const projects = projectsData.projects
+        const total = projects.length
+        const active = projects.filter((p: any) => p.status === 'active').length
+        const completed = projects.filter((p: any) => p.status === 'completed').length
+        const inactive = projects.filter((p: any) => p.status === 'inactive').length
+
+        // Fetch applications
+        const approvalsResponse = await fetch('/api/client/approvals')
+        const approvalsData = await approvalsResponse.json()
+
+        if (approvalsData.success) {
+          const applications = approvalsData.applications
+          const approved = applications.filter((a: any) => a.status === 'approved').length
+          const pending = applications.filter((a: any) => a.status === 'pending').length
+
+          setClientStats({
+            total,
+            active,
+            completed,
+            inactive,
+            approved,
+            pending
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    }
+  }
 
   // Render Employee Dashboard
   if (userRole === 'employee') {
