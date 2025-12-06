@@ -12,6 +12,9 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ["freelancer", "professional"],
     },
+    engineeringField: {
+        type: String,
+    },
     profilePicture: {
         type: String,
     }

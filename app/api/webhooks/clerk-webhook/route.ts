@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
                     role: user.unsafe_metadata?.role,
                     username: user.username,
                     employeeType: user.unsafe_metadata?.employeeType,
+                    engineeringField: user.unsafe_metadata?.engineeringField,
                 });
 
             return NextResponse.json({ success: true }, { status: 200 });
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
                     role: user.unsafe_metadata?.role,
                     username: user.username,
                     employeeType: user.unsafe_metadata?.employeeType,
+                    engineeringField: user.unsafe_metadata?.engineeringField,
                 },
                 { new: true, runValidators: true }
             );

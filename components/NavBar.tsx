@@ -89,7 +89,7 @@ const NavBar = () => {
     }
 
     const getPageTitle = () => {
-        if (pathname === '/dashboard') {
+        if (pathname?.startsWith('/dashboard')) {
             return 'Dashboard'
         } else if (pathname?.startsWith('/projects/')) {
             const projectId = pathname.split('/projects/')[1]

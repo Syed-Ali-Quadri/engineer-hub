@@ -9,7 +9,9 @@ export default function OnboardingPage() {
     const { user } = useUser()
     const [role, setRole] = useState("")
     const [employeeType, setEmployeeType] = useState("")
+    const [engineeringField, setEngineeringField] = useState("")
     const [showEmployeeOptions, setShowEmployeeOptions] = useState(false)
+    const [loading, setLoading] = useState(false)
 
     const handleRoleChange = (selectedRole: string) => {
         setRole(selectedRole)
@@ -23,17 +25,45 @@ export default function OnboardingPage() {
     }
 
     const handleSave = async () => {
-        const metadata: any = { role }
-        
-        if (role === "employee" && employeeType) {
-            metadata.employeeType = employeeType
+        if (!canProceed || loading) return
+
+        setLoading(true)
+
+        try {
+            const metadata: any = { role }
+            
+            if (role === "employee" && employeeType) {
+                metadata.employeeType = employeeType
+                if (engineeringField) {
+                    metadata.engineeringField = engineeringField
+                }
+            }
+
+            console.log("Saving metadata:", metadata)
+
+            await user?.update({
+                unsafeMetadata: metadata,
+            })
+
+            console.log("Metadata saved, reloading user...")
+            
+            // Reload the user to get fresh session data
+            await user?.reload()
+            
+            console.log("User reloaded, current metadata:", user?.unsafeMetadata)
+            
+            // Wait a moment for session to propagate
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            
+            console.log("Redirecting to home...")
+            
+            // Use window.location for a hard redirect to force middleware re-check
+            window.location.href = "/"
+        } catch (error) {
+            console.error("Error saving role:", error)
+            alert("Failed to save role. Please try again.")
+            setLoading(false)
         }
-
-        await user?.update({
-            unsafeMetadata: metadata,
-        })
-
-        router.push("/")
     }
 
     const canProceed = role === "client" || (role === "employee" && employeeType !== "")
@@ -77,21 +107,31 @@ export default function OnboardingPage() {
                         />
                         Professional Jobs
                     </label>
+                    <label style={{ display: "block", marginTop: 10 }}>
+                        <input
+                            type="text"
+                            name="employeeType"
+                            placeholder="Engineering Field"
+                            onChange={(e) => setEngineeringField(e.target.value)}
+                            style={{ marginRight: 8 }}
+                        />
+                        engineeringField
+                    </label>
                 </div>
             )}
 
             <button
                 onClick={handleSave}
-                disabled={!canProceed}
+                disabled={!canProceed || loading}
                 style={{
                     padding: "10px 20px",
                     marginTop: 20,
-                    background: canProceed ? "black" : "#ccc",
+                    background: canProceed && !loading ? "black" : "#ccc",
                     color: "white",
-                    cursor: canProceed ? "pointer" : "not-allowed",
+                    cursor: canProceed && !loading ? "pointer" : "not-allowed",
                 }}
             >
-                Continue
+                {loading ? "Saving..." : "Continue"}
             </button>
         </div>
     )
