@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useUser } from '@clerk/nextjs'
-import DashboardSidebar from '@/components/DashboardSidebar'
+import DashboardSidebar from '@/components/DashboardSideBar'
 import ProjectForm from '@/components/ProjectForm'
 import Image from 'next/image'
 

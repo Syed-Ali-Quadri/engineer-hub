@@ -13,7 +13,7 @@ interface DashboardSidebarProps {
     role: 'client' | 'employee' | 'admin'
 }
 
-const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ role }) => {
+const DashboardSideBar: React.FC<DashboardSidebarProps> = ({ role }) => {
     const router = useRouter()
     const pathname = usePathname()
 
@@ -266,4 +266,4 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ role }) => {
     )
 }
 
-export default DashboardSidebar
+export default DashboardSideBar

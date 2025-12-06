@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
-import DashboardSidebar from '@/components/DashboardSidebar'
+import DashboardSidebar from '@/components/DashboardSideBar'
 
 const DashboardPage = () => {
   const { user, isLoaded } = useUser()

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useUser } from '@clerk/nextjs'
-import DashboardSidebar from '@/components/DashboardSidebar'
+import DashboardSidebar from '@/components/DashboardSideBar'
 
 interface Review {
     id: number
