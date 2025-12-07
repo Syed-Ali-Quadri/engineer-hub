@@ -14,10 +14,10 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL("/sign-in", req.url))
   }
 
-  // const role = (sessionClaims?.unsafeMetadata as any)?.role
-  // if (!role && !path.startsWith("/onboarding")) {
-  //   return NextResponse.redirect(new URL("/onboarding", req.url))
-  // }
+  const role = (sessionClaims?.unsafeMetadata as any)?.role
+  if (!role && !path.startsWith("/onboarding")) {
+    return NextResponse.redirect(new URL("/onboarding", req.url))
+  }
 
   return NextResponse.next()
 })
